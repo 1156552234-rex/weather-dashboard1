@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>45天城市天气与季节品需求预测看板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --blue: #2563eb;
+      --red: #ef4444;
+      --orange: #f97316;
+      --green: #16a34a;
+      --purple: #7c3aed;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37,99,235,0.14), transparent 28%),
+        radial-gradient(circle at top right, rgba(249,115,22,0.12), transparent 26%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #1e3a8a 58%, #f97316);
+      color: #fff;
+      border-radius: 26px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      top: -80px;
+      width: 260px;
+      height: 260px;
+      background: rgba(255,255,255,0.13);
+      border-radius: 50%;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      letter-spacing: 0.2px;
+    }
+
+    .hero p {
+      margin: 0;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.86);
+      max-width: 980px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .update-time {
+      font-size: 13px;
+      color: rgba(255,255,255,0.78);
+    }
+
+    .btn {
+      border: none;
+      background: rgba(255,255,255,0.16);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.24);
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      grid-column: span 4;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(229,231,235,0.8);
+    }
+
+    .summary-card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .summary-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .city-rank {
+      display: grid;
+      grid-template-columns: 72px 1fr 46px;
+      gap: 10px;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .bar {
+      height: 9px;
+      background: #edf2f7;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-inner {
+      height: 100%;
+      border-radius: 999px;
+      width: 0;
+      transition: width .4s ease;
+    }
+
+    .bar-heater { background: linear-gradient(90deg, #60a5fa, #2563eb); }
+    .bar-ice { background: linear-gradient(90deg, #93c5fd, #06b6d4); }
+    .bar-fan { background: linear-gradient(90deg, #fdba74, #f97316); }
+
+    .city-card {
+      background: var(--card);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(229,231,235,0.85);
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .city-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .city-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 23px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .city-sub {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .badge-strong {
+      background: #fff7ed;
+      color: #c2410c;
+      border-color: #fed7aa;
+    }
+
+    .badge-mid {
+      background: #eef6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .badge-weak {
+      background: #f3f4f6;
+      color: #4b5563;
+      border-color: #e5e7eb;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      background: #f8fafc;
+      border: 1px solid #eef2f7;
+      border-radius: 16px;
+      padding: 13px;
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .metric .value {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .metric .small {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.45fr 0.85fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .chart-box {
+      min-height: 330px;
+      background: #fbfdff;
+      border: 1px solid #eef2f7;
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .insight-box {
+      background: #fbfdff;
+      border: 1px solid #eef2f7;
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .insight-box h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .advice {
+      display: grid;
+      gap: 10px;
+    }
+
+    .advice-item {
+      padding: 12px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid #eef2f7;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .advice-item b {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .score-row {
+      display: grid;
+      grid-template-columns: 78px 1fr 44px;
+      gap: 10px;
+      align-items: center;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+
+    details {
+      margin-top: 16px;
+      border-top: 1px solid #eef2f7;
+      padding-top: 14px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 800;
+      color: #334155;
+      margin-bottom: 10px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid #eef2f7;
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 720px;
+      background: #fff;
+    }
+
+    th, td {
+      border-bottom: 1px solid #eef2f7;
+      padding: 10px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 800;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:hover td {
+      background: #f8fafc;
+    }
+
+    .loading,
+    .error {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .error {
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+      margin: 18px 0 6px;
+    }
+
+    @media (max-width: 1100px) {
+      .summary-card {
+        grid-column: span 12;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .city-rank {
+        grid-template-columns: 62px 1fr 40px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>45天城市天气趋势 & 季节品需求预测看板</h1>
+      <p>
+        覆盖伦敦、柏林、马德里、巴黎、洛杉矶、纽约、达拉斯。
+        页面会自动读取未来45天趋势，并转化为取暖器、制冰机、风扇的运营参考信号。
+      </p>
+
+      <div class="topbar">
+        <div class="update-time" id="updateTime">正在加载天气数据...</div>
+        <button class="btn" onclick="loadAllWeather()">立即刷新</button>
+      </div>
+
+      <div class="legend">
+        <span>🔥 风扇/制冰机：高温天数越多，信号越强</span>
+        <span>🧊 制冰机：连续高温、少雨更有利</span>
+        <span>🔥 取暖器：低温天数、夜间低温越多，信号越强</span>
+        <span>📈 趋势：对比前15天与后15天均温</span>
+      </div>
+    </section>
+
+    <section class="dashboard-grid" id="marketSummary"></section>
+
+    <main id="weatherContainer">
+      <div class="loading">正在更新天气数据...</div>
+    </main>
+
+    <div class="footer-note">
+      说明：45天属于中长期趋势预测，适合用于广告预算、备货节奏、页面主推方向判断；不建议作为精确到单日的销量预测。
+      需求分数为基于温度、降雨、风速的经营模型估算，可按你的真实销量数据继续校准阈值。
+    </div>
+  </div>
+
+  <script>
+    const cities = [
+      { name: "伦敦", latitude: 51.5072, longitude: -0.1276, market: "UK" },
+      { name: "柏林", latitude: 52.5200, longitude: 13.4050, market: "DE" },
+      { name: "马德里", latitude: 40.4168, longitude: -3.7038, market: "ES" },
+      { name: "巴黎", latitude: 48.8566, longitude: 2.3522, market: "FR" },
+      { name: "洛杉矶", latitude: 34.0522, longitude: -118.2437, market: "US-West" },
+      { name: "纽约", latitude: 40.7128, longitude: -74.0060, market: "US-East" },
+      { name: "达拉斯", latitude: 32.7767, longitude: -96.7970, market: "US-South" }
+    ];
+
+    const weatherCodeMap = {
+      0: "晴",
+      1: "基本晴",
+      2: "局部多云",
+      3: "阴",
+      45: "雾",
+      48: "雾凇",
+      51: "小毛毛雨",
+      53: "中毛毛雨",
+      55: "大毛毛雨",
+      56: "冻毛毛雨",
+      57: "强冻毛毛雨",
+      61: "小雨",
+      63: "中雨",
+      65: "大雨",
+      66: "冻雨",
+      67: "强冻雨",
+      71: "小雪",
+      73: "中雪",
+      75: "大雪",
+      77: "雪粒",
+      80: "阵雨",
+      81: "中阵雨",
+      82: "强阵雨",
+      85: "小阵雪",
+      86: "强阵雪",
+      95: "雷雨",
+      96: "雷雨伴小冰雹",
+      99: "雷雨伴大冰雹"
+    };
+
+    const chartInstances = {};
+
+    function clamp(value, min = 0, max = 100) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function avg(values) {
+      const valid = values.filter(v => Number.isFinite(v));
+      if (!valid.length) return null;
+      return valid.reduce((a, b) => a + b, 0) / valid.length;
+    }
+
+    function sum(values) {
+      return values
+        .filter(v => Number.isFinite(v))
+        .reduce((a, b) => a + b, 0);
+    }
+
+    function formatNumber(value, digits = 1) {
+      if (!Number.isFinite(value)) return "-";
+      return Number(value).toFixed(digits);
+    }
+
+    function getScoreLevel(score) {
+      if (score >= 70) return { text: "强信号", className: "badge-strong" };
+      if (score >= 45) return { text: "中信号", className: "badge-mid" };
+      return { text: "弱信号", className: "badge-weak" };
+    }
+
+    function getTrend(firstAvg, lastAvg) {
+      const diff = lastAvg - firstAvg;
+      if (diff >= 2) return { text: "后段升温", emoji: "📈", diff };
+      if (diff <= -2) return { text: "后段降温", emoji: "📉", diff };
+      return { text: "整体平稳", emoji: "➡️", diff };
+    }
+
+    function getWeatherText(code) {
+      if (code === null || code === undefined) return "-";
+      return weatherCodeMap[code] || `天气代码${code}`;
+    }
+
+    async function fetchWeather(city) {
+      const url =
+        `https://seasonal-api.open-meteo.com/v1/seasonal` +
+        `?latitude=${city.latitude}` +
+        `&longitude=${city.longitude}` +
+        `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,weather_code` +
+        `&forecast_days=45` +
+        `&timezone=auto`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`${city.name} 天气数据获取失败`);
+      }
+
+      return await response.json();
+    }
+
+    function analyzeCity(city, data) {
+      const daily = data.daily || {};
+      const dates = (daily.time || []).slice(0, 45);
+      const maxTemps = (daily.temperature_2m_max || []).slice(0, 45).map(Number);
+      const minTemps = (daily.temperature_2m_min || []).slice(0, 45).map(Number);
+      const rain = (daily.precipitation_sum || []).slice(0, 45).map(Number);
+      const wind = (daily.wind_speed_10m_max || []).slice(0, 45).map(Number);
+      const codes = (daily.weather_code || []).slice(0, 45);
+
+      const meanTemps = maxTemps.map((v, i) => {
+        const min = minTemps[i];
+        return Number.isFinite(v) && Number.isFinite(min) ? (v + min) / 2 : null;
+      });
+
+      const avgMax = avg(maxTemps);
+      const avgMin = avg(minTemps);
+      const avgMean = avg(meanTemps);
+      const totalRain = sum(rain);
+      const avgWind = avg(wind);
+
+      const hotDays25 = maxTemps.filter(v => v >= 25).length;
+      const hotDays28 = maxTemps.filter(v => v >= 28).length;
+      const hotDays30 = maxTemps.filter(v => v >= 30).length;
+      const coldDays12 = meanTemps.filter(v => Number.isFinite(v) && v <= 12).length;
+      const coldNights8 = minTemps.filter(v => v <= 8).length;
+      const coldNights5 = minTemps.filter(v => v <= 5).length;
+      const rainDays = rain.filter(v => v >= 1).length;
+
+      const first15 = avg(meanTemps.slice(0, 15));
+      const last15 = avg(meanTemps.slice(-15));
+      const trend = getTrend(first15 || 0, last15 || 0);
+
+      /*
+        经营评分逻辑：
+        - 取暖器：低均温、低夜温、低温天数越多越强；雨天多会略微增加室内取暖需求。
+        - 风扇：25℃以上天数、28℃以上天数、平均最高温越高越强；雨天多会削弱一部分户外/露营场景。
+        - 制冰机：28℃/30℃以上高温天数和平均最高温越高越强；连续高温、少雨更有利。
+      */
+      const heaterScore = clamp(
+        coldDays12 * 2.2 +
+        coldNights8 * 1.6 +
+        coldNights5 * 2.2 +
+        Math.max(0, 16 - (avgMean || 16)) * 5 +
+        Math.min(rainDays, 18) * 0.6
+      );
+
+      const fanScore = clamp(
+        hotDays25 * 1.8 +
+        hotDays28 * 2.2 +
+        Math.max(0, (avgMax || 0) - 23) * 5.5 -
+        rainDays * 0.35 +
+        (trend.diff > 1 ? 5 : 0)
+      );
+
+      const iceScore = clamp(
+        hotDays28 * 2.6 +
+        hotDays30 * 3.2 +
+        Math.max(0, (avgMax || 0) - 25) * 6.5 -
+        rainDays * 0.25 +
+        (trend.diff > 1 ? 5 : 0)
+      );
+
+      return {
+        city,
+        dates,
+        maxTemps,
+        minTemps,
+        rain,
+        wind,
+        codes,
+        meanTemps,
+        avgMax,
+        avgMin,
+        avgMean,
+        totalRain,
+        avgWind,
+        hotDays25,
+        hotDays28,
+        hotDays30,
+        coldDays12,
+        coldNights8,
+        coldNights5,
+        rainDays,
+        first15,
+        last15,
+        trend,
+        scores: {
+          heater: Math.round(heaterScore),
+          fan: Math.round(fanScore),
+          ice: Math.round(iceScore)
+        }
+      };
+    }
+
+    function productAdvice(a) {
+      const heaterLevel = getScoreLevel(a.scores.heater);
+      const fanLevel = getScoreLevel(a.scores.fan);
+      const iceLevel = getScoreLevel(a.scores.ice);
+
+      const heaterAdvice = a.scores.heater >= 70
+        ? "可提高取暖器预算与曝光，主推快速升温、低噪、卧室/办公室局部取暖场景。"
+        : a.scores.heater >= 45
+          ? "保留取暖器基础曝光，适合测试低温夜晚、潮湿室内等场景词。"
+          : "取暖器不建议作为主推，可保留低预算防守。";
+
+      const iceAdvice = a.scores.ice >= 70
+        ? "制冰机需求强，适合提前加预算，主推聚会、露营、办公室、夏季冷饮场景。"
+        : a.scores.ice >= 45
+          ? "制冰机有阶段性机会，建议观察高温集中周，做短期促销或 coupon。"
+          : "制冰机信号偏弱，不建议大幅加仓，可等高温拐点出现。";
+
+      const fanAdvice = a.scores.fan >= 70
+        ? "风扇需求强，适合主推静音、便携、卧室、办公室、通勤/户外降温场景。"
+        : a.scores.fan >= 45
+          ? "风扇有中等机会，适合维持广告并测试高温关键词。"
+          : "风扇信号偏弱，预算以防守和低价词为主。";
+
+      return { heaterLevel, fanLevel, iceLevel, heaterAdvice, iceAdvice, fanAdvice };
+    }
+
+    function renderScoreRow(label, score, type) {
+      return `
+        <div class="score-row">
+          <div>${label}</div>
+          <div class="bar">
+            <div class="bar-inner bar-${type}" style="width:${score}%"></div>
+          </div>
+          <b>${score}</b>
+        </div>
+      `;
+    }
+
+    function renderMarketSummary(analyses) {
+      const sortBy = key => [...analyses].sort((a, b) => b.scores[key] - a.scores[key]).slice(0, 5);
+
+      const makeCard = (title, key, type, hint) => {
+        const rows = sortBy(key).map(a => `
+          <div class="city-rank">
+            <b>${a.city.name}</b>
+            <div class="bar">
+              <div class="bar-inner bar-${type}" style="width:${a.scores[key]}%"></div>
+            </div>
+            <b>${a.scores[key]}</b>
+          </div>
+        `).join("");
+
+        return `
+          <div class="summary-card">
+            <h2>${title}</h2>
+            <div class="summary-list">${rows}</div>
+            <div class="city-sub" style="margin-top:12px;">${hint}</div>
+          </div>
+        `;
+      };
+
+      document.getElementById("marketSummary").innerHTML =
+        makeCard("🔥 取暖器需求信号 Top", "heater", "heater", "低温天数、夜间低温、雨天越多，信号越强。") +
+        makeCard("🧊 制冰机需求信号 Top", "ice", "ice", "28℃/30℃以上高温天数越多，信号越强。") +
+        makeCard("🌬️ 风扇需求信号 Top", "fan", "fan", "25℃以上天数和升温趋势越明显，信号越强。");
+    }
+
+    function renderCityCard(a, index) {
+      const advice = productAdvice(a);
+
+      const heaterBadge = `<span class="badge ${advice.heaterLevel.className}">🔥 取暖器：${advice.heaterLevel.text} ${a.scores.heater}</span>`;
+      const iceBadge = `<span class="badge ${advice.iceLevel.className}">🧊 制冰机：${advice.iceLevel.text} ${a.scores.ice}</span>`;
+      const fanBadge = `<span class="badge ${advice.fanLevel.className}">🌬️ 风扇：${advice.fanLevel.text} ${a.scores.fan}</span>`;
+
+      const rows = a.dates.map((date, i) => `
+        <tr>
+          <td>${date}</td>
+          <td>${getWeatherText(a.codes[i])}</td>
+          <td>${formatNumber(a.maxTemps[i])}℃</td>
+          <td>${formatNumber(a.minTemps[i])}℃</td>
+          <td>${formatNumber(a.meanTemps[i])}℃</td>
+          <td>${formatNumber(a.rain[i])} mm</td>
+          <td>${formatNumber(a.wind[i])} km/h</td>
+        </tr>
+      `).join("");
+
+      return `
+        <section class="city-card">
+          <div class="city-header">
+            <div>
+              <div class="city-title">📍 ${a.city.name} <span class="city-sub">${a.city.market}</span></div>
+              <div class="city-sub">
+                ${a.trend.emoji} ${a.trend.text}，前15天均温 ${formatNumber(a.first15)}℃，后15天均温 ${formatNumber(a.last15)}℃，
+                变化 ${formatNumber(a.trend.diff)}℃。
+              </div>
+            </div>
+            <div class="badges">
+              ${heaterBadge}
+              ${iceBadge}
+              ${fanBadge}
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="label">45天平均最高温</div>
+              <div class="value">${formatNumber(a.avgMax)}℃</div>
+              <div class="small">判断风扇/制冰机基础热度</div>
+            </div>
+            <div class="metric">
+              <div class="label">45天平均最低温</div>
+              <div class="value">${formatNumber(a.avgMin)}℃</div>
+              <div class="small">判断夜间取暖需求</div>
+            </div>
+            <div class="metric">
+              <div class="label">≥28℃高温天数</div>
+              <div class="value">${a.hotDays28}天</div>
+              <div class="small">制冰机/风扇强相关</div>
+            </div>
+            <div class="metric">
+              <div class="label">≤12℃低温天数</div>
+              <div class="value">${a.coldDays12}天</div>
+              <div class="small">取暖器强相关</div>
+            </div>
+            <div class="metric">
+              <div class="label">预计总降雨量</div>
+              <div class="value">${formatNumber(a.totalRain)}mm</div>
+              <div class="small">雨天多，户外降温品转弱</div>
+            </div>
+            <div class="metric">
+              <div class="label">平均最大风速</div>
+              <div class="value">${formatNumber(a.avgWind)}km/h</div>
+              <div class="small">强风会影响户外场景</div>
+            </div>
+          </div>
+
+          <div class="content-grid">
+            <div class="chart-box">
+              <canvas id="chart-${index}"></canvas>
+            </div>
+
+            <div class="insight-box">
+              <h3>经营动作建议</h3>
+
+              ${renderScoreRow("取暖器", a.scores.heater, "heater")}
+              ${renderScoreRow("制冰机", a.scores.ice, "ice")}
+              ${renderScoreRow("风扇", a.scores.fan, "fan")}
+
+              <div class="advice">
+                <div class="advice-item">
+                  <b>🔥 取暖器</b>
+                  ${advice.heaterAdvice}
+                </div>
+                <div class="advice-item">
+                  <b>🧊 制冰机</b>
+                  ${advice.iceAdvice}
+                </div>
+                <div class="advice-item">
+                  <b>🌬️ 风扇</b>
+                  ${advice.fanAdvice}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <details>
+            <summary>查看45天明细数据</summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th>
+                    <th>天气</th>
+                    <th>最高温</th>
+                    <th>最低温</th>
+                    <th>均温</th>
+                    <th>降雨量</th>
+                    <th>最大风速</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+      `;
+    }
+
+    function drawCharts(analyses) {
+      analyses.forEach((a, index) => {
+        const canvas = document.getElementById(`chart-${index}`);
+        if (!canvas) return;
+
+        if (chartInstances[index]) {
+          chartInstances[index].destroy();
+        }
+
+        chartInstances[index] = new Chart(canvas, {
+          type: "line",
+          data: {
+            labels: a.dates,
+            datasets: [
+              {
+                label: "最高温 ℃",
+                data: a.maxTemps,
+                borderColor: "#ef4444",
+                backgroundColor: "rgba(239, 68, 68, 0.08)",
+                borderWidth: 2.5,
+                tension: 0.35,
+                pointRadius: 0,
+                fill: false
+              },
+              {
+                label: "最低温 ℃",
+                data: a.minTemps,
+                borderColor: "#2563eb",
+                backgroundColor: "rgba(37, 99, 235, 0.08)",
+                borderWidth: 2.5,
+                tension: 0.35,
+                pointRadius: 0,
+                fill: false
+              },
+              {
+                label: "降雨量 mm",
+                data: a.rain,
+                borderColor: "#16a34a",
+                backgroundColor: "rgba(22, 163, 74, 0.08)",
+                borderWidth: 1.8,
+                tension: 0.25,
+                pointRadius: 0,
+                yAxisID: "rain"
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: "index",
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                position: "top"
+              },
+              tooltip: {
+                callbacks: {
+                  afterBody: context => {
+                    const i = context[0].dataIndex;
+                    return [
+                      `天气：${getWeatherText(a.codes[i])}`,
+                      `经营：取暖器${a.scores.heater} / 制冰机${a.scores.ice} / 风扇${a.scores.fan}`
+                    ];
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  maxTicksLimit: 8
+                },
+                grid: {
+                  display: false
+                }
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "温度 ℃"
+                },
+                grid: {
+                  color: "rgba(148, 163, 184, 0.18)"
+                }
+              },
+              rain: {
+                position: "right",
+                title: {
+                  display: true,
+                  text: "降雨量 mm"
+                },
+                grid: {
+                  drawOnChartArea: false
+                },
+                suggestedMin: 0
+              }
+            }
+          }
+        });
+      });
+    }
+
+    async function loadAllWeather() {
+      const container = document.getElementById("weatherContainer");
+      const updateTime = document.getElementById("updateTime");
+      const marketSummary = document.getElementById("marketSummary");
+
+      container.innerHTML = `<div class="loading">正在更新天气数据...</div>`;
+      marketSummary.innerHTML = "";
+
+      try {
+        const analyses = await Promise.all(
+          cities.map(async city => {
+            const data = await fetchWeather(city);
+            return analyzeCity(city, data);
+          })
+        );
+
+        renderMarketSummary(analyses);
+        container.innerHTML = analyses.map((a, index) => renderCityCard(a, index)).join("");
+        drawCharts(analyses);
+
+        updateTime.innerText = "最后更新时间：" + new Date().toLocaleString("zh-CN");
+      } catch (error) {
+        container.innerHTML = `
+          <div class="error">
+            更新失败：${error.message}<br />
+            建议检查网络是否能访问 Open-Meteo API，或稍后点击“立即刷新”。
+          </div>
+        `;
+        updateTime.innerText = "更新失败：" + new Date().toLocaleString("zh-CN");
+      }
+    }
+
+    loadAllWeather();
+
+    // 每30分钟自动刷新一次
+    setInterval(loadAllWeather, 30 * 60 * 1000);
+  </script>
+</body>
+</html>
